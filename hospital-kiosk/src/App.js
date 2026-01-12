@@ -197,7 +197,17 @@ const handlePayment = async () => {
     const ordResp = await axios.post(buildApi('/api/razorpay/create-order'), { amount: doctor.fee });
     const ordData = typeof ordResp.data === 'string' ? JSON.parse(ordResp.data) : ordResp.data;
     const orderId = ordData.id || ordData.order_id || ordData.orderId || ordData.id;
-    let key = ordData.key || ordData.key_id || ordData.key;
+    // If backend returned a mock order (demo mode) or didn't provide a public key,
+    // do not open Razorpay Checkout. This prevents Checkout from calling Razorpay
+    // servers with invalid/mocked order IDs (which returns 400).
+    const orderIdStr = orderId ? String(orderId) : '';
+    let key = ordData.key || ordData.key_id || ordData.public_key || '';
+    if (!orderIdStr || orderIdStr.startsWith('order_mock_') || !key) {
+      console.warn('Razorpay disabled: mock order or missing public key', { ordData, orderId: orderIdStr, key });
+      alert('Online payments are not configured or unavailable. The appointment will be created without payment (demo).');
+      await handleFinalSubmit();
+      return;
+    }
     if (!key) {
       try {
         const pk = await axios.get(buildApi('/api/razorpay/public-key'));
@@ -219,7 +229,7 @@ const handlePayment = async () => {
     });
 
     const options = {
-      key: key || 'rzp_test_S28kQARurj88gk',
+      key: key,
       amount: doctor.fee * 100,
       currency: 'INR',
       name: 'City Hospital',
