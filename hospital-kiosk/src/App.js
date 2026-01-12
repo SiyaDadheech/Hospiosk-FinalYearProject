@@ -15,6 +15,7 @@ function resolveApiBase() {
   return (process.env.REACT_APP_API_BASE || '').replace(/\/+$/, '');
 }
 const API_BASE = resolveApiBase();
+console.log('Resolved API_BASE:', API_BASE);
 
 export default function KioskFrontend() {
   const [step, setStep] = useState(1); // 1: Aadhar, 2: Details, 3: Doctor, 4: Receipt
@@ -44,10 +45,12 @@ export default function KioskFrontend() {
       setStep(2);
     } catch (e) {
       console.error('Aadhaar fetch error:', e);
+      const resp = e && e.response ? e.response : null;
+      const details = resp ? `HTTP ${resp.status} ${resp.statusText} - ${JSON.stringify(resp.data)}` : (e.message || String(e));
       // Fallback: create a local mock patient so kiosk can proceed offline
       const suffix = cleaned.substring(Math.max(0, cleaned.length - 4));
       const mock = { name: `Patient ${suffix}`, age: 30 };
-      alert('Aadhaar lookup failed — using offline fallback');
+      alert(`Aadhaar lookup failed — using offline fallback.\n\nDetails: ${details}`);
       setPatient(mock);
       setStep(2);
     }
@@ -180,9 +183,10 @@ const handlePayment = async () => {
           alert('Payment successful!');
           await handleFinalSubmit();
         } catch (err) {
-          console.error('Verification error', err);
-          alert('Payment verification failed');
-        }
+          console.error('Payment/booking error:', e);
+          const resp = e && e.response ? e.response : null;
+          const msg = resp ? `HTTP ${resp.status} ${resp.statusText} - ${JSON.stringify(resp.data)}` : (e.message || 'Payment/Booking Error');
+          alert(`Payment/booking failed:\n\n${msg}`);
       },
       prefill: { name: patient.name },
       theme: { color: '#007bff' },
