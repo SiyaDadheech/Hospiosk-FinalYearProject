@@ -23,11 +23,16 @@ public class PatientController {
     @GetMapping("/fetch-aadhar/{aadharNum}")
     public Patient getAadharDetails(@PathVariable String aadharNum) {
         // Simulate UIDAI lookup with a small demo map for better-looking names
+        System.out.println("/api/fetch-aadhar called with raw: '" + aadharNum + "'");
         if (aadharNum == null) {
+            System.out.println("Aadhar: null received");
             return new Patient("Unknown", 0, "INVALID");
         }
-        String cleaned = aadharNum.replaceAll("\\s+", "");
-        if (cleaned.length() < 4) {
+        // Strip all non-digit characters so formatted input (spaces, dashes) still works
+        String cleaned = aadharNum.replaceAll("\\D+", "");
+        System.out.println("Aadhar cleaned: '" + cleaned + "'");
+        if (cleaned.length() != 12) {
+            System.out.println("Aadhar invalid length: " + cleaned.length());
             return new Patient("Unknown", 0, "INVALID");
         }
 
