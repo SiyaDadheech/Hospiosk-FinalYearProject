@@ -183,10 +183,11 @@ const handlePayment = async () => {
           alert('Payment successful!');
           await handleFinalSubmit();
         } catch (err) {
-          console.error('Payment/booking error:', e);
-          const resp = e && e.response ? e.response : null;
-          const msg = resp ? `HTTP ${resp.status} ${resp.statusText} - ${JSON.stringify(resp.data)}` : (e.message || 'Payment/Booking Error');
+          console.error('Payment/booking error:', err);
+          const resp = err && err.response ? err.response : null;
+          const msg = resp ? `HTTP ${resp.status} ${resp.statusText} - ${JSON.stringify(resp.data)}` : (err.message || 'Payment/Booking Error');
           alert(`Payment/booking failed:\n\n${msg}`);
+        }
       },
       prefill: { name: patient.name },
       theme: { color: '#007bff' },
