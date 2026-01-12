@@ -8,14 +8,63 @@ import axios from 'axios';
 function resolveApiBase() {
   try {
     const m = document.querySelector('meta[name="api-base"]');
-    if (m && m.content) return m.content.replace(/\/+$/, '');
+    if (m && m.content) {
+      const raw = m.content.trim();
+      try {
+        const u = new URL(raw);
+        // keep only origin (protocol + host + optional port)
+        return u.origin.replace(/\/+$/, '');
+      } catch (err) {
+        console.warn('Invalid api-base meta tag, ignoring:', raw);
+        return '';
+      }
+    }
   } catch (e) {
     // ignore when rendering on server or during build
   }
-  return (process.env.REACT_APP_API_BASE || '').replace(/\/+$/, '');
+  const env = (process.env.REACT_APP_API_BASE || '').trim();
+  try {
+    if (env) return new URL(env).origin.replace(/\/+$/, '');
+  } catch (er) {
+    console.warn('Invalid REACT_APP_API_BASE, ignoring:', env);
+  }
+  return '';
 }
 const API_BASE = resolveApiBase();
 console.log('Resolved API_BASE:', API_BASE);
+
+// Build API endpoint safely. If `API_BASE` is empty we use relative paths so
+// requests go to the same origin as the static site. If it's set, we use it
+// as the absolute origin.
+// If the meta/api-base was set to the static site's origin (common mistake),
+// treat it as unset so we don't try to call the static site for backend APIs.
+const EFFECTIVE_API_BASE = (() => {
+  try {
+    if (!API_BASE) return '';
+    // If someone accidentally set api-base to the Azure static app origin,
+    // requests will hit the static site (404). Detect common static hostnames
+    // and fallback to relative paths while warning the developer.
+    if (API_BASE.includes('azurestaticapps.net') || API_BASE.includes('github.io')) {
+      console.warn('api-base appears to be a static-site origin; ignoring to avoid requests to the static site:', API_BASE);
+      return '';
+    }
+    return API_BASE;
+  } catch (e) {
+    return API_BASE;
+  }
+})();
+
+function buildApi(path) {
+  if (!path) return path;
+  if (!path.startsWith('/')) path = '/' + path;
+  if (!EFFECTIVE_API_BASE) return path; // relative
+  try {
+    return new URL(path, EFFECTIVE_API_BASE).toString();
+  } catch (e) {
+    console.warn('Failed to build API URL, falling back to relative path:', path, e);
+    return path;
+  }
+}
 
 export default function KioskFrontend() {
   const [step, setStep] = useState(1); // 1: Aadhar, 2: Details, 3: Doctor, 4: Receipt
@@ -40,7 +89,7 @@ export default function KioskFrontend() {
       return;
     }
     try {
-      const res = await axios.get(`${API_BASE}/api/fetch-aadhar/${cleaned}`);
+      const res = await axios.get(buildApi(`/api/fetch-aadhar/${cleaned}`));
       setPatient(res.data);
       setStep(2);
     } catch (e) {
@@ -60,7 +109,7 @@ export default function KioskFrontend() {
     try {
       // In real flow the scanner SDK will provide a template; here we use a mock template
       const template = String(Date.now());
-      const res = await axios.post(`${API_BASE}/api/biometric/authenticate`, { template, mode: 'mock' });
+      const res = await axios.post(buildApi('/api/biometric/authenticate'), { template, mode: 'mock' });
       setPatient(res.data);
       setStep(2);
     } catch (e) {
@@ -75,7 +124,7 @@ export default function KioskFrontend() {
     try {
       // include selected doctor and payment method in the booking payload
       const payload = { ...patient, doctor, paymentMethod };
-      await axios.post(`${API_BASE}/api/add-patient`, payload);
+      await axios.post(buildApi('/api/add-patient'), payload);
       setStep(4);
     } catch (e) {
       console.error('Booking error:', e);
@@ -129,7 +178,7 @@ const handlePayment = async () => {
     // For online methods call backend to create an order (Razorpay) or payment link
     if (paymentMethod === 'upi') {
       // Create a payment link and show it to the user to scan
-      const linkResp = await axios.post(`${API_BASE}/api/razorpay/create-payment-link`, {
+      const linkResp = await axios.post(buildApi('/api/razorpay/create-payment-link'), {
         amount: doctor.fee,
         customer: { name: patient.name }
       });
@@ -145,13 +194,13 @@ const handlePayment = async () => {
     }
 
     // Create order (Razorpay Orders API) and open Checkout
-    const ordResp = await axios.post(`${API_BASE}/api/razorpay/create-order`, { amount: doctor.fee });
+    const ordResp = await axios.post(buildApi('/api/razorpay/create-order'), { amount: doctor.fee });
     const ordData = typeof ordResp.data === 'string' ? JSON.parse(ordResp.data) : ordResp.data;
     const orderId = ordData.id || ordData.order_id || ordData.orderId || ordData.id;
     let key = ordData.key || ordData.key_id || ordData.key;
     if (!key) {
       try {
-        const pk = await axios.get(`${API_BASE}/api/razorpay/public-key`);
+        const pk = await axios.get(buildApi('/api/razorpay/public-key'));
         const pkd = typeof pk.data === 'string' ? JSON.parse(pk.data) : pk.data;
         key = pkd.key || pkd.key_id || '';
       } catch (er) {
@@ -179,7 +228,7 @@ const handlePayment = async () => {
       handler: async function (response) {
         try {
           // Verify payment server-side
-          await axios.post(`${API_BASE}/api/razorpay/verify`, response);
+          await axios.post(buildApi('/api/razorpay/verify'), response);
           alert('Payment successful!');
           await handleFinalSubmit();
         } catch (err) {

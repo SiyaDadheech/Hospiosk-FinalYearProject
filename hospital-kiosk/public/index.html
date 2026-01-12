@@ -17,9 +17,9 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-        <!-- Add a runtime API base meta tag so the deployed static site can point to the backend
-          without rebuilding. Update the content value to your backend origin (including https). -->
-        <meta name="api-base" content="https://delightful-sea-0a6b87510.6.azurestaticapps.net" />
+        <!-- Runtime API base: set this to your BACKEND origin (example: https://my-backend.azurewebsites.net).
+             Do NOT include angle brackets. Leave empty to use relative paths (same origin). -->
+        <meta name="api-base" content="" />
     <!--
       Notice the use of %PUBLIC_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.
