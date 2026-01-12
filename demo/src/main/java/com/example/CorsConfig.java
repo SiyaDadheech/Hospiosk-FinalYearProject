@@ -12,7 +12,9 @@ public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:3000")
+            // Allow local dev and the deployed Azure Static Web App origin.
+            // Replace or restrict the Azure origin to your exact domain if needed.
+            .allowedOrigins("http://localhost:3000", "https://delightful-sea-0a6b87510.6.azurestaticapps.net")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)

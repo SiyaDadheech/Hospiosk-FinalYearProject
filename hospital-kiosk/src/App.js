@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-// Backend API base URL — set `REACT_APP_API_BASE` in your deployment environment
-// For local development keep it empty to use relative paths or set to your backend origin.
-const API_BASE = process.env.REACT_APP_API_BASE || '';
+// Backend API base URL — resolved at runtime from a meta tag or build-time env var.
+// This allows updating the backend target without rebuilding the bundle: add
+// <meta name="api-base" content="https://your-backend.example.com"> to public/index.html
+// If meta tag is absent, we fall back to `REACT_APP_API_BASE`.
+function resolveApiBase() {
+  try {
+    const m = document.querySelector('meta[name="api-base"]');
+    if (m && m.content) return m.content.replace(/\/+$/, '');
+  } catch (e) {
+    // ignore when rendering on server or during build
+  }
+  return (process.env.REACT_APP_API_BASE || '').replace(/\/+$/, '');
+}
+const API_BASE = resolveApiBase();
 
 export default function KioskFrontend() {
   const [step, setStep] = useState(1); // 1: Aadhar, 2: Details, 3: Doctor, 4: Receipt
