@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
+// Backend API base URL — set `REACT_APP_API_BASE` in your deployment environment
+// For local development keep it empty to use relative paths or set to your backend origin.
+const API_BASE = process.env.REACT_APP_API_BASE || '';
+
 export default function KioskFrontend() {
   const [step, setStep] = useState(1); // 1: Aadhar, 2: Details, 3: Doctor, 4: Receipt
   const [aadhar, setAadhar] = useState('');
@@ -24,15 +28,15 @@ export default function KioskFrontend() {
       return;
     }
     try {
-      const res = await axios.get(`http://localhost:8080/api/fetch-aadhar/${cleaned}`);
+      const res = await axios.get(`${API_BASE}/api/fetch-aadhar/${cleaned}`);
       setPatient(res.data);
       setStep(2);
     } catch (e) {
-      console.error('Aadhar fetch error:', e);
+      console.error('Aadhaar fetch error:', e);
       // Fallback: create a local mock patient so kiosk can proceed offline
       const suffix = cleaned.substring(Math.max(0, cleaned.length - 4));
       const mock = { name: `Patient ${suffix}`, age: 30 };
-      alert('Aadhar connection failed — using offline fallback');
+      alert('Aadhaar lookup failed — using offline fallback');
       setPatient(mock);
       setStep(2);
     }
@@ -42,7 +46,7 @@ export default function KioskFrontend() {
     try {
       // In real flow the scanner SDK will provide a template; here we use a mock template
       const template = String(Date.now());
-      const res = await axios.post('http://localhost:8080/api/biometric/authenticate', { template, mode: 'mock' });
+      const res = await axios.post(`${API_BASE}/api/biometric/authenticate`, { template, mode: 'mock' });
       setPatient(res.data);
       setStep(2);
     } catch (e) {
@@ -57,7 +61,7 @@ export default function KioskFrontend() {
     try {
       // include selected doctor and payment method in the booking payload
       const payload = { ...patient, doctor, paymentMethod };
-      await axios.post('http://localhost:8080/api/add-patient', payload);
+      await axios.post(`${API_BASE}/api/add-patient`, payload);
       setStep(4);
     } catch (e) {
       console.error('Booking error:', e);
@@ -111,7 +115,7 @@ const handlePayment = async () => {
     // For online methods call backend to create an order (Razorpay) or payment link
     if (paymentMethod === 'upi') {
       // Create a payment link and show it to the user to scan
-      const linkResp = await axios.post('http://localhost:8080/api/razorpay/create-payment-link', {
+      const linkResp = await axios.post(`${API_BASE}/api/razorpay/create-payment-link`, {
         amount: doctor.fee,
         customer: { name: patient.name }
       });
@@ -127,13 +131,13 @@ const handlePayment = async () => {
     }
 
     // Create order (Razorpay Orders API) and open Checkout
-    const ordResp = await axios.post('http://localhost:8080/api/razorpay/create-order', { amount: doctor.fee });
+    const ordResp = await axios.post(`${API_BASE}/api/razorpay/create-order`, { amount: doctor.fee });
     const ordData = typeof ordResp.data === 'string' ? JSON.parse(ordResp.data) : ordResp.data;
     const orderId = ordData.id || ordData.order_id || ordData.orderId || ordData.id;
     let key = ordData.key || ordData.key_id || ordData.key;
     if (!key) {
       try {
-        const pk = await axios.get('http://localhost:8080/api/razorpay/public-key');
+        const pk = await axios.get(`${API_BASE}/api/razorpay/public-key`);
         const pkd = typeof pk.data === 'string' ? JSON.parse(pk.data) : pk.data;
         key = pkd.key || pkd.key_id || '';
       } catch (er) {
@@ -161,7 +165,7 @@ const handlePayment = async () => {
       handler: async function (response) {
         try {
           // Verify payment server-side
-          await axios.post('http://localhost:8080/api/razorpay/verify', response);
+          await axios.post(`${API_BASE}/api/razorpay/verify`, response);
           alert('Payment successful!');
           await handleFinalSubmit();
         } catch (err) {
