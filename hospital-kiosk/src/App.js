@@ -1,6 +1,20 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
+
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/+$/, '');
+
+const buildApi = (path = '') => {
+  if (!API_BASE_URL) {
+    console.error('REACT_APP_API_BASE_URL is not defined');
+    return path;
+  }
+
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${cleanPath}`;
+};
+
+
 // Backend API base URL — resolved at runtime from a meta tag or build-time env var.
 // This allows updating the backend target without rebuilding the bundle: add
 // <meta name="api-base" content="https://your-backend.example.com"> to public/index.html
@@ -81,29 +95,40 @@ export default function KioskFrontend() {
   ];
 
   // Step 1: Fetch from UIDAI (Backend API)
-  const handleAadharSubmit = async () => {
-    // validate input (strip spaces)
-    const cleaned = (aadhar || '').replace(/\s+/g, '');
-    if (!/^\d{12}$/.test(cleaned)) {
-      alert('Please enter a valid 12-digit Aadhaar number');
-      return;
-    }
-    try {
-      const res = await axios.get(buildApi(`/api/fetch-aadhar/${cleaned}`));
-      setPatient(res.data);
-      setStep(2);
-    } catch (e) {
-      console.error('Aadhaar fetch error:', e);
-      const resp = e && e.response ? e.response : null;
-      const details = resp ? `HTTP ${resp.status} ${resp.statusText} - ${JSON.stringify(resp.data)}` : (e.message || String(e));
-      // Fallback: create a local mock patient so kiosk can proceed offline
-      const suffix = cleaned.substring(Math.max(0, cleaned.length - 4));
-      const mock = { name: `Patient ${suffix}`, age: 30 };
-      alert(`Aadhaar lookup failed — using offline fallback.\n\nDetails: ${details}`);
-      setPatient(mock);
-      setStep(2);
-    }
-  };
+const handleAadharSubmit = async () => {
+  const cleaned = (aadhar || '').replace(/\s+/g, '');
+  if (!/^\d{12}$/.test(cleaned)) {
+    alert('Please enter a valid 12-digit Aadhaar number');
+    return;
+  }
+
+  try {
+    const res = await axios.get(buildApi(`/api/fetch-aadhar/${cleaned}`));
+    setPatient(res.data);
+    setStep(2);
+  } catch (e) {
+    console.error('Aadhaar fetch error:', e);
+
+    const resp = e && e.response ? e.response : null;
+    const details = resp
+      ? `HTTP ${resp.status} ${resp.statusText} - ${JSON.stringify(resp.data)}`
+      : (e.message || String(e));
+
+    // Fallback mock patient (offline / backend down case)
+    const suffix = cleaned.slice(-4);
+    const mockPatient = {
+      name: `Patient ${suffix}`,
+      age: 30
+    };
+
+    alert(
+      `Aadhaar lookup failed — using offline fallback.\n\nDetails: ${details}`
+    );
+
+    setPatient(mockPatient);
+    setStep(2);
+  }
+};
 
   const handleBiometric = async () => {
     try {
