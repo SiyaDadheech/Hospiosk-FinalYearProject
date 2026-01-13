@@ -19,66 +19,16 @@ const buildApi = (path = '') => {
 // This allows updating the backend target without rebuilding the bundle: add
 // <meta name="api-base" content="https://your-backend.example.com"> to public/index.html
 // If meta tag is absent, we fall back to `REACT_APP_API_BASE`.
-function resolveApiBase() {
-  try {
-    const m = document.querySelector('meta[name="api-base"]');
-    if (m && m.content) {
-      const raw = m.content.trim();
-      try {
-        const u = new URL(raw);
-        // keep only origin (protocol + host + optional port)
-        return u.origin.replace(/\/+$/, '');
-      } catch (err) {
-        console.warn('Invalid api-base meta tag, ignoring:', raw);
-        return '';
-      }
-    }
-  } catch (e) {
-    // ignore when rendering on server or during build
-  }
-  const env = (process.env.REACT_APP_API_BASE || '').trim();
-  try {
-    if (env) return new URL(env).origin.replace(/\/+$/, '');
-  } catch (er) {
-    console.warn('Invalid REACT_APP_API_BASE, ignoring:', env);
-  }
-  return '';
-}
-const API_BASE = resolveApiBase();
-console.log('Resolved API_BASE:', API_BASE);
+
+
 
 // Build API endpoint safely. If `API_BASE` is empty we use relative paths so
 // requests go to the same origin as the static site. If it's set, we use it
 // as the absolute origin.
 // If the meta/api-base was set to the static site's origin (common mistake),
 // treat it as unset so we don't try to call the static site for backend APIs.
-const EFFECTIVE_API_BASE = (() => {
-  try {
-    if (!API_BASE) return '';
-    // If someone accidentally set api-base to the Azure static app origin,
-    // requests will hit the static site (404). Detect common static hostnames
-    // and fallback to relative paths while warning the developer.
-    if (API_BASE.includes('azurestaticapps.net') || API_BASE.includes('github.io')) {
-      console.warn('api-base appears to be a static-site origin; ignoring to avoid requests to the static site:', API_BASE);
-      return '';
-    }
-    return API_BASE;
-  } catch (e) {
-    return API_BASE;
-  }
-})();
 
-function buildApi(path) {
-  if (!path) return path;
-  if (!path.startsWith('/')) path = '/' + path;
-  if (!EFFECTIVE_API_BASE) return path; // relative
-  try {
-    return new URL(path, EFFECTIVE_API_BASE).toString();
-  } catch (e) {
-    console.warn('Failed to build API URL, falling back to relative path:', path, e);
-    return path;
-  }
-}
+
 
 export default function KioskFrontend() {
   const [step, setStep] = useState(1); // 1: Aadhar, 2: Details, 3: Doctor, 4: Receipt

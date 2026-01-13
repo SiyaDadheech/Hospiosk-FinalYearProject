@@ -35,7 +35,7 @@ public class DemoApplication {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")           // allow only /api endpoints
-                        .allowedOrigins("http://localhost:3000") // React frontend origin
+                        .allowedOrigins("http://localhost:3000","https://delightful-sea-0a6b87510.6.azurestaticapps.net") // React frontend origin
                         .allowedMethods("GET", "POST", "PUT", "DELETE")
                         .allowedHeaders("*");
             }
